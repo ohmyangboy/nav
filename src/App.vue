@@ -1,14 +1,32 @@
 <template>
-  <div class="app">
+  <div class="app" :class="{ 'dark-theme': isDark }">
     <header class="header">
       <h1 class="logo">Nav</h1>
-      <button class="config-btn" @click="showConfig = true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 9.9h-6m-6 0H1.9"/>
-        </svg>
-        配置
-      </button>
+      <div class="header-actions">
+        <button class="theme-btn" @click="toggleTheme" :title="isDark ? '切换浅色模式' : '切换深色模式'">
+          <svg v-if="!isDark" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+        <button class="config-btn" @click="showConfig = true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.9 9.9h-6m-6 0H1.9"/>
+          </svg>
+          配置
+        </button>
+      </div>
     </header>
 
     <main class="main">
@@ -64,8 +82,9 @@ export default {
     const isSearching = ref(false)
     const showConfig = ref(false)
     const config = ref(defaultConfig)
+    const isDark = ref(false)
 
-    // 加载本地配置
+    // 加载本地配置和主题
     onMounted(() => {
       const saved = localStorage.getItem('nav-config')
       if (saved) {
@@ -75,7 +94,20 @@ export default {
           console.error('配置加载失败', e)
         }
       }
+      // 加载主题设置
+      const savedTheme = localStorage.getItem('nav-theme')
+      if (savedTheme) {
+        isDark.value = savedTheme === 'dark'
+      } else {
+        // 检测系统主题偏好
+        isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
+      }
     })
+
+    const toggleTheme = () => {
+      isDark.value = !isDark.value
+      localStorage.setItem('nav-theme', isDark.value ? 'dark' : 'light')
+    }
 
     const categories = computed(() => config.value.categories || [])
 
@@ -115,7 +147,9 @@ export default {
       categories,
       filteredSites,
       openLink,
-      saveConfig
+      saveConfig,
+      isDark,
+      toggleTheme
     }
   }
 }
@@ -138,6 +172,21 @@ export default {
   --border: rgba(0, 0, 0, 0.08);
   --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.1);
+  --overlay-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* 暗色主题 */
+.dark-theme {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --accent: #58a6ff;
+  --accent-light: rgba(88, 166, 255, 0.15);
+  --border: rgba(255, 255, 255, 0.1);
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --overlay-bg: rgba(0, 0, 0, 0.7);
 }
 
 body {
@@ -166,6 +215,32 @@ body {
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.5px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.theme-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: rotate(15deg);
 }
 
 .config-btn {

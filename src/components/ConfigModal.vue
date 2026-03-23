@@ -85,7 +85,7 @@
         <div v-else class="visual-mode">
           <draggable
             v-model="localConfig.categories"
-            item-key="name"
+            :item-key="(item) => item.id || item._id || item.name"
             handle=".category-drag"
             ghost-class="dragging"
             class="categories-list"
@@ -113,7 +113,7 @@
 
                 <draggable
                   v-model="category.sites"
-                  item-key="name"
+                  :item-key="(item) => item._id || item.id"
                   handle=".site-drag"
                   ghost-class="dragging"
                   group="sites"
@@ -185,6 +185,26 @@
 import { ref, reactive, computed, watch } from 'vue'
 import draggable from 'vuedraggable'
 
+// 生成唯一 ID
+let idCounter = 0
+const generateId = () => `_${++idCounter}_${Date.now().toString(36)}`
+
+// 为配置添加 ID
+const addIdsToConfig = (config) => {
+  if (!config || !config.categories) return config
+  return {
+    ...config,
+    categories: config.categories.map(cat => ({
+      ...cat,
+      _id: cat._id || generateId(),
+      sites: (cat.sites || []).map(site => ({
+        ...site,
+        _id: site._id || generateId()
+      }))
+    }))
+  }
+}
+
 export default {
   name: 'ConfigModal',
   components: {
@@ -203,15 +223,15 @@ export default {
     const jsonError = ref('')
     const fileInput = ref(null)
 
-    // 深拷贝配置用于本地编辑
-    const localConfig = reactive({
-      categories: JSON.parse(JSON.stringify(props.config.categories))
-    })
+    // 深拷贝配置用于本地编辑，并添加 ID
+    const localConfig = reactive(
+      addIdsToConfig({ categories: JSON.parse(JSON.stringify(props.config.categories || [])) })
+    )
 
     const configJson = ref(JSON.stringify(props.config, null, 2))
 
     watch(() => props.config, (newConfig) => {
-      localConfig.categories = JSON.parse(JSON.stringify(newConfig.categories))
+      localConfig.categories = addIdsToConfig({ categories: JSON.parse(JSON.stringify(newConfig.categories || [])) }).categories
       configJson.value = JSON.stringify(newConfig, null, 2)
     }, { deep: true })
 
@@ -221,6 +241,7 @@ export default {
 
     const addCategory = () => {
       localConfig.categories.push({
+        _id: generateId(),
         name: '新分类',
         sites: []
       })
@@ -234,6 +255,7 @@ export default {
 
     const addSite = (category) => {
       category.sites.push({
+        _id: generateId(),
         name: '',
         url: '',
         icon: '🔖'
@@ -255,8 +277,16 @@ export default {
           return
         }
       } else {
-        // 可视化模式保存
-        emit('save', { categories: localConfig.categories })
+        // 可视化模式保存 - 移除 _id 字段
+        const cleanCategories = localConfig.categories.map(cat => ({
+          name: cat.name,
+          sites: cat.sites.map(site => ({
+            name: site.name,
+            url: site.url,
+            icon: site.icon
+          }))
+        }))
+        emit('save', { categories: cleanCategories })
       }
     }
 
@@ -268,7 +298,8 @@ export default {
       reader.onload = (event) => {
         try {
           const imported = JSON.parse(event.target.result)
-          localConfig.categories = imported.categories || []
+          const configWithIds = addIdsToConfig(imported)
+          localConfig.categories = configWithIds.categories || []
           configJson.value = JSON.stringify(imported, null, 2)
           showJson.value = false
           emit('save', imported)
@@ -313,7 +344,7 @@ export default {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--overlay-bg, rgba(0, 0, 0, 0.5));
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
